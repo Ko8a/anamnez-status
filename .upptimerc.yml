@@ -1,31 +1,69 @@
-# Change these first
-owner: upptime # Your GitHub organization or username, where this repository lives
-repo: upptime # The name of this repository
-
+owner: Ko8a
+repo: anamnez-status
 sites:
-  - name: Google
-    url: https://www.google.com
-  - name: Wikipedia
-    url: https://en.wikipedia.org
-  - name: Hacker News
-    url: https://news.ycombinator.com
-  - name: Secret Site
-    url: $SECRET_SITE
-
+  - name: Приложение для врачей
+    url: https://app.anamnez.kz
+  - name: API
+    url: https://app.anamnez.kz/api/v1/health
+  - name: ИИ (анамнез, Copilot, распознавание речи)
+    url: https://app.anamnez.kz/api/v1/health/ai
+    expectedStatusCodes: [200]
+  - name: Сайт anamnez.kz
+    url: https://www.anamnez.kz
 status-website:
-  # Add your custom domain name, or remove the `cname` line if you don't have a domain
-  # Uncomment the `baseUrl` line if you don't have a custom domain and add your repo name there
-  cname: demo.upptime.js.org
-  # baseUrl: /your-repo-name
-  logoUrl: https://raw.githubusercontent.com/upptime/upptime.js.org/master/static/img/icon.svg
-  name: Upptime
-  introTitle: "**Upptime** is the open-source uptime monitor and status page, powered entirely by GitHub."
-  introMessage: This is a sample status page which uses **real-time** data from our [GitHub repository](https://github.com/upptime/upptime). No server required — just GitHub Actions, Issues, and Pages. [**Get your own for free**](https://github.com/upptime/upptime)
+  cname: status.anamnez.kz
+  name: Anamnez — статус сервисов
+  introTitle: "Состояние сервисов Anamnez"
+  introMessage: Проверка каждые 5 минут. История доступности за 90 дней.
   navbar:
-    - title: Status
-      href: /
-    - title: GitHub
-      href: https://github.com/$OWNER/$REPO
-
-# Upptime also supports notifications, assigning issues, and more
-# See https://upptime.js.org/docs/configuration
+    - title: Anamnez
+      href: https://www.anamnez.kz
+  i18n:
+    activeIncidents: Активные инциденты
+    allSystemsOperational: Все системы работают
+    incidentReport: "Инцидент 
+    activeIncidentSummary: Открыт $DATE, $POSTS обновлений
+    incidentTitle: Инцидент $NUMBER
+    incidentDetails: Подробности
+    incidentFixed: Исправлено
+    incidentOngoing: Продолжается
+    incidentOpenedAt: Открыт
+    incidentClosedAt: Закрыт
+    incidentSubscribe: Подписаться
+    incidentViewOnGitHub: Открыть на GitHub
+    incidentCommentSummary: Опубликовано $DATE
+    incidentBack: ← Ко всем инцидентам
+    pastIncidents: Прошлые инциденты
+    pastIncidentsResolved: Решён за $MINUTES мин., $POSTS обновлений
+    liveStatus: Сейчас
+    overallUptime: "Доступность: $UPTIME"
+    overallUptimeTitle: Доступность
+    averageResponseTime: "Время ответа: $TIMEms"
+    averageResponseTimeTitle: Время ответа
+    sevelDayResponseTime: Время ответа за 7 дней
+    responseTimeMs: Время ответа (мс)
+    up: Работает
+    down: Недоступно
+    degraded: Замедлено
+    ms: мс
+    loading: Загрузка
+    navGitHub: GitHub
+    footer: Страница статуса Anamnez
+    rateLimitExceededTitle: Превышен лимит запросов
+    rateLimitExceededIntro: Слишком много запросов, попробуйте позже.
+    errorTitle: Ошибка
+    errorIntro: Не удалось загрузить данные.
+    errorText: Попробуйте обновить страницу.
+    errorHome: На главную
+    pastScheduledMaintenance: Прошлые технические работы
+    scheduledMaintenance: Технические работы
+    scheduledMaintenanceSummaryStarted: Начаты $DATE на $DURATION мин.
+    scheduledMaintenanceSummaryStarts: Начнутся $DATE на $DURATION мин.
+    startedAt: Начаты
+    startsAt: Начнутся
+    duration: Длительность
+    durationMin: $DURATION мин.
+    incidentCompleted: Завершены
+    incidentScheduled: Запланированы
+workflowSchedule:
+  uptime: "*/5 * * * *"
