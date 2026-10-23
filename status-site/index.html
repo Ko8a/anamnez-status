@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Anamnez — статус сервисов</title>
+  <meta name="description" content="Текущее состояние сервисов Anamnez, доступность за 90 дней и история инцидентов.">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <a class="brand" href="https://www.anamnez.kz">
+        <img src="logo.svg" alt="" width="40" height="40">
+        <span>
+          <span class="brand-name">Anamnez</span>
+          <span class="brand-sub">Статус сервисов</span>
+        </span>
+      </a>
+      <a class="btn" id="subscribe" hidden>Подписаться на обновления</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="banner" class="banner loading" aria-live="polite">
+      <span class="banner-icon" aria-hidden="true"></span>
+      <span class="banner-text">Загружаем состояние сервисов…</span>
+    </section>
+
+    <section id="active" class="active" hidden></section>
+
+    <div class="caption">
+      <span>Доступность за последние <span class="days-n"></span></span>
+      <span id="checked" class="muted"></span>
+    </div>
+
+    <section class="card" id="components" aria-label="Сервисы"></section>
+
+    <ul class="legend" aria-label="Обозначения">
+      <li><i class="bar-ok"></i>Работает</li>
+      <li><i class="bar-minor"></i>Сбой до часа</li>
+      <li><i class="bar-major"></i>Сбой больше часа</li>
+      <li><i class="bar-none"></i>Нет данных</li>
+    </ul>
+
+    <section class="past">
+      <h2>Прошлые инциденты</h2>
+      <div id="past"></div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <span>Проверка снаружи каждые 5 минут, независимо от серверов Anamnez.</span>
+    <a href="https://www.anamnez.kz">anamnez.kz</a>
+  </footer>
+
+  <div id="tip" class="tip" role="tooltip" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

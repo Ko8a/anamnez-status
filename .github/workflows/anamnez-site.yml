@@ -1,0 +1,32 @@
+# Lives in Ko8a/anamnez-status as .github/workflows/anamnez-site.yml, with deploy/status-page/site/
+# copied to status-site/. Publishes the Anamnez-styled page into gh-pages, and again after every
+# Upptime "Static Site CI" run, which would otherwise put its own page back. The page reads
+# history/summary.json and the "status" issues at runtime, so the data needs no redeploy.
+name: Anamnez status site
+on:
+  push:
+    branches: [master]
+    paths: [status-site/**, .github/workflows/anamnez-site.yml]
+  workflow_run:
+    workflows: [Static Site CI]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: anamnez-status-site
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: status-site
+          cname: status.anamnez.kz
+          user_name: "Anamnez Status Bot"
+          user_email: "41898282+github-actions[bot]@users.noreply.github.com"
