@@ -264,3 +264,6 @@ main.wrap { padding-top: 32px; padding-bottom: 24px; }
   .timeline .ev { grid-template-columns: 1fr; gap: 4px; }
   .inc-card, .timeline { padding-left: 18px; padding-right: 18px; }
 }
+
+/* the page switches views with the hidden attribute — class display rules must not override it */
+[hidden] { display: none !important; }
