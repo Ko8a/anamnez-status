@@ -330,13 +330,13 @@ function demoData() {
       if (r > 0.96) daily[k] = Math.ceil(rnd() * (ci === 2 ? 180 : 40));
       if (daily[k] && i > DAYS - CONFIG.pastDays) {
         const start = new Date(`${k}T0${3 + ci}:12:00Z`);
-        incidents.push({ title: `${c.name}: сервис недоступен`, level: 'major', slug: c.slug, url: '#', open: false,
+        incidents.push({ number: 900 + incidents.length, url: `#incident-${900 + incidents.length}`, title: `${c.name}: сервис недоступен`, level: 'major', slug: c.slug, open: false,
           start, end: new Date(+start + daily[k] * 6e4) });
       }
     });
     sites[c.slug] = { slug: c.slug, status: c.slug === 'ai' ? 'degraded' : 'up', dailyMinutesDown: daily };
   });
-  incidents.push({ title: 'ИИ: замедленная работа', level: 'minor', slug: 'ii-anamnez-copilot-raspoznavanie-rechi', url: '#', open: true, start: new Date(Date.now() - 23 * 6e4), end: null });
+  incidents.push({ number: 999, url: '#incident-999', title: 'ИИ: замедленная работа', level: 'minor', slug: 'ii-anamnez-copilot-raspoznavanie-rechi', open: true, start: new Date(Date.now() - 23 * 6e4), end: null });
   CONFIG.since = keys[0];
   return { sites, incidents };
 }
