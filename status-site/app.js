@@ -57,6 +57,9 @@ function plural(n, one, few, many) {
 function duration(min) {
   // the server's own probe measures to the second: a 20-second restart is not «1 мин»
   if (min < 1) return `${Math.max(1, Math.round(min * 60))} сек`;
+  // short exact events: «1 мин 29 сек»
+  const sec = Math.round((min % 1) * 60);
+  if (min < 10 && sec && sec < 60) return `${Math.floor(min)} мин ${sec} сек`;
   min = Math.round(min);
   if (min < 60) return `${min} мин`;
   const h = Math.floor(min / 60), m = min % 60;
