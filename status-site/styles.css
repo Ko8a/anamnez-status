@@ -240,3 +240,27 @@ main.wrap { padding-top: 32px; padding-bottom: 24px; }
   .comp { padding: 18px 18px 14px; }
   .comp-head { flex-direction: column; gap: 2px; }
 }
+
+/* incident page (#incident-<n>) */
+.incident-page { margin-top: 8px; }
+.incident-page .back { display: inline-block; margin-bottom: 14px; color: var(--brand-600); font-weight: 600; text-decoration: none; }
+.incident-page .back:hover { text-decoration: underline; }
+.inc-card { padding: 24px 26px; border-left: 4px solid var(--ok); }
+.inc-card.minor { border-left-color: var(--minor); }
+.inc-card.major { border-left-color: var(--major); }
+.inc-card h1 { margin: 6px 0 4px; font-size: 24px; line-height: 1.25; color: var(--ink); }
+.inc-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin: 18px 0 0; }
+.inc-facts dt { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); }
+.inc-facts dd { margin: 3px 0 0; font-weight: 600; color: var(--ink); }
+.inc-h { margin: 28px 0 10px; font-size: 18px; color: var(--ink); }
+.timeline { padding: 6px 26px; }
+.timeline .ev { display: grid; grid-template-columns: 190px 1fr; gap: 16px; padding: 16px 0; }
+.timeline .ev + .ev { border-top: 1px solid var(--line); }
+.ev-time { font-size: 13px; color: var(--ink-muted); }
+.ev-text p { margin: 0 0 6px; color: var(--ink-soft); line-height: 1.55; }
+.ev-text p:last-child { margin-bottom: 0; }
+.ev-text a { color: var(--brand-600); }
+@media (max-width: 640px) {
+  .timeline .ev { grid-template-columns: 1fr; gap: 4px; }
+  .inc-card, .timeline { padding-left: 18px; padding-right: 18px; }
+}

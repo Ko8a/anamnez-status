@@ -27,28 +27,30 @@
   </header>
 
   <main class="wrap">
-    <section id="banner" class="banner loading" aria-live="polite">
+    <section id="banner" class="main-view banner loading" aria-live="polite">
       <span class="banner-icon" aria-hidden="true"></span>
       <span class="banner-text">Загружаем состояние сервисов…</span>
     </section>
 
+    <section id="incident" class="incident-page" hidden></section>
+
     <section id="active" class="active" hidden></section>
 
-    <div class="caption">
+    <div class="main-view caption">
       <span>Доступность за последние <span class="days-n"></span></span>
       <span id="checked" class="muted"></span>
     </div>
 
-    <section class="card" id="components" aria-label="Сервисы"></section>
+    <section class="main-view card" id="components" aria-label="Сервисы"></section>
 
-    <ul class="legend" aria-label="Обозначения">
+    <ul class="main-view legend" aria-label="Обозначения">
       <li><i class="bar-ok"></i>Работает</li>
       <li><i class="bar-minor"></i>Сбой до часа</li>
       <li><i class="bar-major"></i>Сбой больше часа</li>
       <li><i class="bar-none"></i>Нет данных</li>
     </ul>
 
-    <section class="past">
+    <section class="main-view past">
       <h2>Прошлые инциденты</h2>
       <div id="past"></div>
     </section>
