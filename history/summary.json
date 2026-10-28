@@ -40,18 +40,20 @@
     "url": "https://app.anamnez.kz/api/v1/health/ai",
     "icon": "https://icons.duckduckgo.com/ip3/app.anamnez.kz.ico",
     "slug": "ii-anamnez-copilot-raspoznavanie-rechi",
-    "status": "up",
+    "status": "down",
     "uptime": "100.00%",
-    "uptimeDay": "100.00%",
+    "uptimeDay": "99.99%",
     "uptimeWeek": "100.00%",
     "uptimeMonth": "100.00%",
     "uptimeYear": "100.00%",
-    "time": 1315,
-    "timeDay": 536,
-    "timeWeek": 1315,
-    "timeMonth": 1315,
-    "timeYear": 1315,
-    "dailyMinutesDown": {}
+    "time": 1248,
+    "timeDay": 657,
+    "timeWeek": 1248,
+    "timeMonth": 1248,
+    "timeYear": 1248,
+    "dailyMinutesDown": {
+      "2026-10-28": 0
+    }
   },
   {
     "name": "Сайт anamnez.kz",
