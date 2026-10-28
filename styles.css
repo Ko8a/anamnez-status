@@ -267,3 +267,13 @@ main.wrap { padding-top: 32px; padding-bottom: 24px; }
 
 /* the page switches views with the hidden attribute — class display rules must not override it */
 [hidden] { display: none !important; }
+
+/* planned maintenance (updates): blue, not counted against availability */
+:root { --maint: #3b82f6; --maint-ink: #1d4ed8; }
+.banner.maint { background: var(--maint); }
+.banner.maint .banner-icon { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z'/%3E%3C/svg%3E"); }
+.state.maint { color: var(--maint-ink); }
+.incident-card.maint { border-left-color: var(--maint); }
+.incident-card.maint .stage { color: var(--maint-ink); }
+.past-item.maint a { color: var(--maint-ink); }
+.inc-card.maint { border-left-color: var(--maint); }
