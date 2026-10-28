@@ -242,7 +242,7 @@ async function showIncident(number) {
     // rate limit — the facts above are still right
   }
   const events = [
-    { at: inc.start, text: '<p>Автоматическая проверка обнаружила, что сервис не отвечает.</p>' },
+    { at: inc.start, text: inc.level === 'minor' ? '<p>Автоматическая проверка: сервис отвечает медленнее обычного.</p>' : '<p>Автоматическая проверка обнаружила, что сервис не отвечает.</p>' },
     ...comments
       .filter((c) => c.body && !AUTO_COMMENT.test(c.body))
       .map((c) => ({ at: new Date(c.created_at), text: prose(c.body) })),
