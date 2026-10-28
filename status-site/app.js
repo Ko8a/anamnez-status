@@ -26,6 +26,10 @@ const DAY_MS = 864e5;
 const MINOR_LIMIT_MIN = 60; // up to an hour down in a day is drawn amber, longer red
 
 const RAW = `https://raw.githubusercontent.com/${CONFIG.owner}/${CONFIG.repo}/${CONFIG.branch}`;
+// exact outage log of the server's own probe (scripts/monitor/status-probe.py), every 10 s
+const EXACT = 'https://app.anamnez.kz/status/outages.json';
+// an Upptime incident and a probe outage within this gap are the same event
+const MATCH_MS = 6 * 6e4;
 const ISSUES = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/issues?state=all&labels=status&per_page=100`;
 const DEMO = new URLSearchParams(location.search).has('demo');
 
@@ -35,10 +39,13 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const fmtDate = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 const fmtDayLocal = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: CONFIG.timeZone });
 const fmtTime = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: CONFIG.timeZone });
+const fmtTimeSec = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: CONFIG.timeZone });
+/** exact events (server probe) to the second, Upptime's to the minute */
+const tm = (d, exact) => (exact ? fmtTimeSec : fmtTime).format(d);
 const fmtPct = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const localKey = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: CONFIG.timeZone }).format(d); // YYYY-MM-DD
 
-const STATE_TEXT = { ok: 'Работает', minor: 'Замедлено', major: 'Недоступно', none: 'Нет данных' };
+const STATE_TEXT = { ok: 'Работает', minor: 'Замедлено', major: 'Недоступно', maint: 'Технические работы', none: 'Нет данных' };
 
 function plural(n, one, few, many) {
   const m10 = n % 10, m100 = n % 100;
@@ -48,7 +55,9 @@ function plural(n, one, few, many) {
 }
 
 function duration(min) {
-  min = Math.max(1, Math.round(min));
+  // the server's own probe measures to the second: a 20-second restart is not «1 мин»
+  if (min < 1) return `${Math.max(1, Math.round(min * 60))} сек`;
+  min = Math.round(min);
   if (min < 60) return `${min} мин`;
   const h = Math.floor(min / 60), m = min % 60;
   return m ? `${h} ч ${m} мин` : `${h} ч`;
@@ -67,7 +76,7 @@ function dayLevel(minutes) {
 
 function siteState(site) {
   if (!site) return 'none';
-  return { up: 'ok', degraded: 'minor', down: 'major' }[site.status] || 'none';
+  return { up: 'ok', degraded: 'minor', down: 'major', maint: 'maint' }[site.status] || 'none';
 }
 
 /** Upptime opens issues titled "🛑 <name> is down" / "⚠️ <name> has degraded performance". */
@@ -100,18 +109,99 @@ async function getJSON(url) {
 
 async function load() {
   if (DEMO) return demoData();
-  const [summary, issues] = await Promise.all([
+  const [summary, issues, exact] = await Promise.all([
     getJSON(`${RAW}/history/summary.json`),
     // incidents are optional: the page still works if the GitHub API rate limit is hit
     getJSON(ISSUES).catch(() => []),
+    // and so is the exact log: without it the page shows Upptime's 5-minute view
+    getJSON(EXACT).catch(() => null),
   ]);
-  return {
+  const data = {
     sites: Object.fromEntries(summary.map((s) => [s.slug, s])),
     incidents: issues.filter((i) => !i.pull_request).map(parseIncident),
   };
+  return exact ? applyExact(data, exact) : data;
 }
 
-function render({ sites, incidents }) {
+/** split [start, end) into minutes per UTC day (Upptime's day keys) */
+function addMinutes(perDay, start, end) {
+  let t = start.getTime();
+  const stop = end.getTime();
+  while (t < stop) {
+    const dayEnd = Date.UTC(new Date(t).getUTCFullYear(), new Date(t).getUTCMonth(), new Date(t).getUTCDate() + 1);
+    const to = Math.min(stop, dayEnd);
+    const k = new Date(t).toISOString().slice(0, 10);
+    perDay[k] = (perDay[k] || 0) + (to - t) / 6e4;
+    t = to;
+  }
+}
+
+const overlaps = (a, b) => a.start - MATCH_MS <= (b.end || new Date()) && b.start - MATCH_MS <= (a.end || new Date());
+
+/**
+ * Upptime samples every 5 minutes; the server probe records exact times. From the day the probe
+ * started: incidents get exact start/end, outages during an update are planned maintenance (not
+ * counted), and the day bars / availability come from the exact minutes. Incidents the probe didn't
+ * see (the whole server down — the probe with it) keep Upptime's times.
+ */
+function applyExact({ sites, incidents }, exact) {
+  const since = new Date(exact.since);
+  const sinceDay = exact.since.slice(0, 10);
+  const nowD = new Date();
+  const outages = (exact.outages || []).map((o) => ({ ...o, start: new Date(o.start), end: o.end ? new Date(o.end) : null }));
+  const windows = (exact.maintenance || []).map((m) => ({ ...m, start: new Date(m.start), end: m.end ? new Date(m.end) : null }));
+  const items = [];
+  const used = new Set();
+
+  for (const inc of incidents) {
+    if (inc.start < since) { items.push(inc); continue; }
+    const match = outages.find((o) => o.slug === inc.slug && overlaps(inc, o));
+    if (match) {
+      used.add(match);
+      inc.start = match.start;
+      inc.end = match.end;
+      inc.open = !match.end;
+      if (match.planned) Object.assign(inc, { level: 'maint', planned: true, title: `${componentName(inc.slug)}: плановые технические работы` });
+    } else if (windows.some((w) => overlaps(inc, w))) {
+      Object.assign(inc, { level: 'maint', planned: true, title: `${componentName(inc.slug)}: плановые технические работы` });
+    }
+    items.push(inc);
+  }
+  // what Upptime didn't catch: short unplanned blips, and every update with its exact times
+  for (const o of outages) {
+    if (used.has(o) || o.planned) continue;
+    items.push({ id: `o${o.start.getTime()}-${o.slug}`, title: `${componentName(o.slug)}: кратковременный сбой`, level: 'major', slug: o.slug,
+      open: !o.end, start: o.start, end: o.end, exact: true });
+  }
+  for (const w of windows) {
+    const hit = outages.filter((o) => o.planned && overlaps(o, w));
+    if (!hit.length && w.end) continue; // an update nobody could notice
+    items.push({ id: `m${w.start.getTime()}`, title: w.title ? `Плановые технические работы: ${w.title.toLowerCase()}` : 'Плановые технические работы',
+      level: 'maint', planned: true, open: !w.end, start: w.start, end: w.end, exact: true,
+      affected: [...new Set(hit.map((o) => componentName(o.slug)))],
+      outages: hit });
+  }
+  for (const it of items) it.url = it.number ? `#incident-${it.number}` : `#event-${it.id}`;
+
+  // exact minutes down (planned excluded) from the probe's first day on
+  for (const [slug, site] of Object.entries(sites)) {
+    if (!CONFIG.components.some((c) => c.slug === slug)) continue;
+    const perDay = {};
+    for (const [k, v] of Object.entries(site.dailyMinutesDown || {})) if (k < sinceDay) perDay[k] = v;
+    for (const o of outages) if (o.slug === slug && !o.planned) addMinutes(perDay, o.start, o.end || nowD);
+    // the probe was down with the server: Upptime's incident is all we know
+    for (const inc of items) if (inc.slug === slug && !inc.planned && !inc.exact && inc.start >= since && !outages.some((o) => o.slug === slug && overlaps(inc, o))) addMinutes(perDay, inc.start, inc.end || nowD);
+    site.dailyMinutesDown = perDay;
+    // live: the probe sees a restart before Upptime's next check does
+    const live = outages.find((o) => o.slug === slug && !o.end);
+    if (live) site.status = live.planned ? 'maint' : 'down';
+  }
+  return { sites, incidents: items, maintenanceNow: windows.some((w) => !w.end) };
+}
+
+const componentName = (slug) => (CONFIG.components.find((c) => c.slug === slug) || {}).name || 'Сервис';
+
+function render({ sites, incidents, maintenanceNow }) {
   const keys = dayKeys();
   const states = CONFIG.components.map((c) => siteState(sites[c.slug]));
   const openIncidents = incidents.filter((i) => i.open);
@@ -123,7 +213,8 @@ function render({ sites, incidents }) {
   let level = 'ok', text = 'Все системы работают';
   if (down === states.length) { level = 'major'; text = 'Серьёзный сбой: сервисы недоступны'; }
   else if (down) { level = 'major'; text = `Частичный сбой: ${down} ${plural(down, 'сервис недоступен', 'сервиса недоступны', 'сервисов недоступны')}`; }
-  else if (slow || openIncidents.length) { level = 'minor'; text = 'Часть сервисов работает с замедлением'; }
+  else if (maintenanceNow || states.includes('maint')) { level = 'maint'; text = 'Идут плановые технические работы — сервисы скоро будут доступны'; }
+  else if (slow || openIncidents.some((i) => !i.planned)) { level = 'minor'; text = 'Часть сервисов работает с замедлением'; }
   banner.className = `main-view banner ${level}`;
   banner.querySelector('.banner-text').textContent = text;
 
@@ -133,7 +224,7 @@ function render({ sites, incidents }) {
   active.innerHTML = openIncidents.map((i) => `
     <article class="incident-card ${i.level}">
       <h3>${esc(i.title)}</h3>
-      <p><span class="stage">Расследуем</span> — начался ${fmtTime.format(i.start)}, ${fmtDayLocal.format(i.start)}
+      <p><span class="stage">${i.planned ? 'Плановые работы' : 'Расследуем'}</span> — ${i.planned ? 'начаты' : 'начался'} ${tm(i.start, i.exact)}, ${fmtDayLocal.format(i.start)}
         <a href="${esc(i.url)}">Подробнее</a></p>
     </article>`).join('');
 
@@ -183,8 +274,8 @@ function render({ sites, incidents }) {
       <div class="past-item ${i.level}">
         <a href="${esc(i.url)}">${esc(i.title)}</a>
         <p>${i.end
-          ? `Решён · ${fmtTime.format(i.start)} – ${fmtTime.format(i.end)} · ${duration((i.end - i.start) / 6e4)}`
-          : `Продолжается с ${fmtTime.format(i.start)}`}</p>
+          ? `${i.planned ? 'Завершены' : 'Решён'} · ${tm(i.start, i.exact)} – ${tm(i.end, i.exact)} · ${duration((i.end - i.start) / 6e4)}${i.planned ? ' · не влияет на доступность' : ''}`
+          : `Продолжается с ${tm(i.start, i.exact)}`}</p>
       </div>`).join('') : '<p class="empty">Инцидентов не было.</p>';
     return `<div class="day"><h3>${fmtDayLocal.format(date)}</h3>${body}</div>`;
   }).join('');
@@ -211,11 +302,24 @@ function prose(text) {
     .join('');
 }
 
-const at = (d) => `${fmtTime.format(d)}, ${fmtDayLocal.format(d)}`;
+const at = (d, exact) => `${tm(d, exact)}, ${fmtDayLocal.format(d)}`;
 
-async function showIncident(number) {
+/** an update: when it started, which services paused and for how long, when it ended */
+function maintenanceEvents(w) {
+  return [
+    { at: w.start, text: '<p>Начаты плановые технические работы: выпускаем обновление платформы. Во время перезапуска сервисы могут быть недоступны несколько секунд.</p>' },
+    ...(w.outages || []).map((o) => ({
+      at: o.start,
+      text: `<p>${esc(componentName(o.slug))}: перезапуск ${o.end ? `— не отвечал ${duration((o.end - o.start) / 6e4)} (до ${tm(o.end, true)})` : '— идёт'}.</p>`,
+    })),
+    ...(w.end ? [{ at: w.end, text: '<p>Работы завершены, все сервисы работают в обычном режиме. Данные не затронуты; плановые работы не учитываются в доступности.</p>' }] : []),
+  ];
+}
+
+async function showIncident(key) {
   const page = $('#incident');
-  const inc = last && last.incidents.find((i) => i.number === number);
+  const inc = last && last.incidents.find((i) => (typeof key === 'number' ? i.number === key : i.id === key));
+  const number = inc && inc.number;
   if (!inc) {
     page.innerHTML = `<a class="back" href="#">← Все сервисы</a><div class="card inc-card"><h1>Инцидент не найден</h1>
       <p class="muted">Возможно, ссылка устарела. Текущее состояние — на главной странице.</p></div>`;
@@ -224,12 +328,12 @@ async function showIncident(number) {
   const comp = CONFIG.components.find((c) => c.slug === inc.slug);
   const head = `<a class="back" href="#">← Все сервисы</a>
     <div class="card inc-card ${inc.level}">
-      <span class="state ${inc.open ? inc.level : 'ok'}">${inc.open ? 'Продолжается' : 'Решён'}</span>
+      <span class="state ${inc.open ? inc.level : 'ok'}">${inc.planned ? (inc.open ? 'Идут работы' : 'Работы завершены') : inc.open ? 'Продолжается' : 'Решён'}</span>
       <h1>${esc(inc.title)}</h1>
       ${comp ? `<p class="muted">${esc(comp.name)} — ${esc(comp.desc)}</p>` : ''}
       <dl class="inc-facts">
-        <div><dt>Начало</dt><dd>${at(inc.start)}</dd></div>
-        <div><dt>${inc.end ? 'Восстановлено' : 'Сейчас'}</dt><dd>${inc.end ? at(inc.end) : 'устраняем'}</dd></div>
+        <div><dt>Начало</dt><dd>${at(inc.start, inc.exact)}</dd></div>
+        <div><dt>${inc.end ? (inc.planned ? 'Завершены' : 'Восстановлено') : 'Сейчас'}</dt><dd>${inc.end ? at(inc.end, inc.exact) : inc.planned ? 'идут работы' : 'устраняем'}</dd></div>
         <div><dt>Длительность</dt><dd>${duration(((inc.end || new Date()) - inc.start) / 6e4)}</dd></div>
       </dl>
     </div>
@@ -237,11 +341,11 @@ async function showIncident(number) {
   page.innerHTML = head + '<div class="card timeline"><p class="muted">Загружаем…</p></div>';
   let comments = [];
   try {
-    if (!DEMO) comments = await getJSON(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/issues/${number}/comments?per_page=100`);
+    if (!DEMO && number) comments = await getJSON(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/issues/${number}/comments?per_page=100`);
   } catch {
     // rate limit — the facts above are still right
   }
-  const events = [
+  const events = inc.planned && inc.exact ? maintenanceEvents(inc) : [
     { at: inc.start, text: inc.level === 'minor' ? '<p>Автоматическая проверка: сервис отвечает медленнее обычного.</p>' : '<p>Автоматическая проверка обнаружила, что сервис не отвечает.</p>' },
     ...comments
       .filter((c) => c.body && !AUTO_COMMENT.test(c.body))
@@ -249,19 +353,19 @@ async function showIncident(number) {
     ...(inc.end ? [{ at: inc.end, text: '<p>Сервис снова работает в обычном режиме.</p>' }] : []),
   ].sort((a, b) => b.at - a.at);
   page.querySelector('.timeline').innerHTML = events
-    .map((e) => `<div class="ev"><span class="ev-time">${at(e.at)}</span><div class="ev-text">${e.text}</div></div>`)
+    .map((e) => `<div class="ev"><span class="ev-time">${at(e.at, inc.exact)}</span><div class="ev-text">${e.text}</div></div>`)
     .join('');
 }
 
 /** main view or one incident, by the address hash */
 function route() {
-  const m = location.hash.match(/^#incident-(\d+)$/);
+  const m = location.hash.match(/^#(?:incident-(\d+)|event-([\w-]+))$/);
   const page = $('#incident');
   document.querySelectorAll('.main-view').forEach((el) => (el.hidden = !!m));
   $('#active').hidden = !!m || !(last && last.incidents.some((i) => i.open));
   page.hidden = !m;
   if (m) {
-    showIncident(Number(m[1]));
+    showIncident(m[1] ? Number(m[1]) : m[2]);
     window.scrollTo(0, 0);
   }
 }
