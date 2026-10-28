@@ -80,10 +80,12 @@ function parseIncident(issue) {
   const slugs = (issue.labels || []).map((l) => (typeof l === 'string' ? l : l.name));
   const comp = CONFIG.components.find((c) => slugs.includes(c.slug));
   return {
+    number: issue.number,
     title,
     level,
     slug: comp && comp.slug,
-    url: issue.html_url,
+    // the incident's own page on this site (not GitHub)
+    url: `#incident-${issue.number}`,
     open: issue.state === 'open',
     start: new Date(issue.created_at),
     end: issue.closed_at ? new Date(issue.closed_at) : null,
@@ -122,7 +124,7 @@ function render({ sites, incidents }) {
   if (down === states.length) { level = 'major'; text = 'Серьёзный сбой: сервисы недоступны'; }
   else if (down) { level = 'major'; text = `Частичный сбой: ${down} ${plural(down, 'сервис недоступен', 'сервиса недоступны', 'сервисов недоступны')}`; }
   else if (slow || openIncidents.length) { level = 'minor'; text = 'Часть сервисов работает с замедлением'; }
-  banner.className = `banner ${level}`;
+  banner.className = `main-view banner ${level}`;
   banner.querySelector('.banner-text').textContent = text;
 
   // active incidents
@@ -132,7 +134,7 @@ function render({ sites, incidents }) {
     <article class="incident-card ${i.level}">
       <h3>${esc(i.title)}</h3>
       <p><span class="stage">Расследуем</span> — начался ${fmtTime.format(i.start)}, ${fmtDayLocal.format(i.start)}
-        <a href="${esc(i.url)}" target="_blank" rel="noopener">Подробнее</a></p>
+        <a href="${esc(i.url)}">Подробнее</a></p>
     </article>`).join('');
 
   // components with 90/60/30-day history
@@ -179,7 +181,7 @@ function render({ sites, incidents }) {
     const list = (byDay[localKey(date)] || []).sort((a, b) => b.start - a.start);
     const body = list.length ? list.map((i) => `
       <div class="past-item ${i.level}">
-        <a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a>
+        <a href="${esc(i.url)}">${esc(i.title)}</a>
         <p>${i.end
           ? `Решён · ${fmtTime.format(i.start)} – ${fmtTime.format(i.end)} · ${duration((i.end - i.start) / 6e4)}`
           : `Продолжается с ${fmtTime.format(i.start)}`}</p>
@@ -189,7 +191,81 @@ function render({ sites, incidents }) {
 
   $('#checked').textContent = `Обновлено в ${fmtTime.format(new Date())}${DEMO ? ' · демо-данные' : ''}`;
   bindTips(sites, incidents);
+  last = { sites, incidents };
+  route();
 }
+
+// ── incident page: #incident-<number> ──────────────────────────────────────────────
+let last = null;
+
+/** Upptime's own comments (English, technical) — the timeline shows them as plain events instead */
+const AUTO_COMMENT = /^\*\*Resolved|is back up|was down|HTTP code|response time|degraded performance/i;
+
+/** comment text → safe HTML: paragraphs, **bold**, links */
+function prose(text) {
+  return esc(text.trim())
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" rel="noopener">$1</a>')
+    .split(/\n{2,}/)
+    .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
+
+const at = (d) => `${fmtTime.format(d)}, ${fmtDayLocal.format(d)}`;
+
+async function showIncident(number) {
+  const page = $('#incident');
+  const inc = last && last.incidents.find((i) => i.number === number);
+  if (!inc) {
+    page.innerHTML = `<a class="back" href="#">← Все сервисы</a><div class="card inc-card"><h1>Инцидент не найден</h1>
+      <p class="muted">Возможно, ссылка устарела. Текущее состояние — на главной странице.</p></div>`;
+    return;
+  }
+  const comp = CONFIG.components.find((c) => c.slug === inc.slug);
+  const head = `<a class="back" href="#">← Все сервисы</a>
+    <div class="card inc-card ${inc.level}">
+      <span class="state ${inc.open ? inc.level : 'ok'}">${inc.open ? 'Продолжается' : 'Решён'}</span>
+      <h1>${esc(inc.title)}</h1>
+      ${comp ? `<p class="muted">${esc(comp.name)} — ${esc(comp.desc)}</p>` : ''}
+      <dl class="inc-facts">
+        <div><dt>Начало</dt><dd>${at(inc.start)}</dd></div>
+        <div><dt>${inc.end ? 'Восстановлено' : 'Сейчас'}</dt><dd>${inc.end ? at(inc.end) : 'устраняем'}</dd></div>
+        <div><dt>Длительность</dt><dd>${duration(((inc.end || new Date()) - inc.start) / 6e4)}</dd></div>
+      </dl>
+    </div>
+    <h2 class="inc-h">Обновления</h2>`;
+  page.innerHTML = head + '<div class="card timeline"><p class="muted">Загружаем…</p></div>';
+  let comments = [];
+  try {
+    if (!DEMO) comments = await getJSON(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/issues/${number}/comments?per_page=100`);
+  } catch {
+    // rate limit — the facts above are still right
+  }
+  const events = [
+    { at: inc.start, text: '<p>Автоматическая проверка обнаружила, что сервис не отвечает.</p>' },
+    ...comments
+      .filter((c) => c.body && !AUTO_COMMENT.test(c.body))
+      .map((c) => ({ at: new Date(c.created_at), text: prose(c.body) })),
+    ...(inc.end ? [{ at: inc.end, text: '<p>Сервис снова работает в обычном режиме.</p>' }] : []),
+  ].sort((a, b) => b.at - a.at);
+  page.querySelector('.timeline').innerHTML = events
+    .map((e) => `<div class="ev"><span class="ev-time">${at(e.at)}</span><div class="ev-text">${e.text}</div></div>`)
+    .join('');
+}
+
+/** main view or one incident, by the address hash */
+function route() {
+  const m = location.hash.match(/^#incident-(\d+)$/);
+  const page = $('#incident');
+  document.querySelectorAll('.main-view').forEach((el) => (el.hidden = !!m));
+  $('#active').hidden = !!m || !(last && last.incidents.some((i) => i.open));
+  page.hidden = !m;
+  if (m) {
+    showIncident(Number(m[1]));
+    window.scrollTo(0, 0);
+  }
+}
+window.addEventListener('hashchange', route);
 
 /** One span per responsive window; CSS shows the one matching the visible bar count. */
 function windows(fn) {
@@ -236,7 +312,7 @@ async function refresh() {
     console.error(err);
     if (!$('#components').children.length) {
       const banner = $('#banner');
-      banner.className = 'banner error';
+      banner.className = 'main-view banner error';
       banner.querySelector('.banner-text').textContent = 'Не удалось загрузить данные мониторинга. Обновите страницу чуть позже.';
     }
   }
