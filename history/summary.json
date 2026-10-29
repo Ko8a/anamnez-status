@@ -10,11 +10,11 @@
     "uptimeWeek": "100.00%",
     "uptimeMonth": "100.00%",
     "uptimeYear": "100.00%",
-    "time": 3183,
-    "timeDay": 1788,
-    "timeWeek": 3183,
-    "timeMonth": 3183,
-    "timeYear": 3183,
+    "time": 3155,
+    "timeDay": 2957,
+    "timeWeek": 3155,
+    "timeMonth": 3155,
+    "timeYear": 3155,
     "dailyMinutesDown": {}
   },
   {
@@ -28,11 +28,11 @@
     "uptimeWeek": "100.00%",
     "uptimeMonth": "100.00%",
     "uptimeYear": "100.00%",
-    "time": 1685,
-    "timeDay": 793,
-    "timeWeek": 1685,
-    "timeMonth": 1685,
-    "timeYear": 1685,
+    "time": 1571,
+    "timeDay": 772,
+    "timeWeek": 1571,
+    "timeMonth": 1571,
+    "timeYear": 1571,
     "dailyMinutesDown": {}
   },
   {
@@ -41,19 +41,17 @@
     "icon": "https://icons.duckduckgo.com/ip3/app.anamnez.kz.ico",
     "slug": "ii-anamnez-copilot-raspoznavanie-rechi",
     "status": "up",
-    "uptime": "99.93%",
-    "uptimeDay": "99.67%",
-    "uptimeWeek": "99.93%",
-    "uptimeMonth": "99.93%",
-    "uptimeYear": "99.93%",
-    "time": 1188,
-    "timeDay": 673,
-    "timeWeek": 1188,
-    "timeMonth": 1188,
-    "timeYear": 1188,
-    "dailyMinutesDown": {
-      "2026-10-28": 5
-    }
+    "uptime": "100.00%",
+    "uptimeDay": "100.00%",
+    "uptimeWeek": "100.00%",
+    "uptimeMonth": "100.00%",
+    "uptimeYear": "100.00%",
+    "time": 1204,
+    "timeDay": 945,
+    "timeWeek": 1204,
+    "timeMonth": 1204,
+    "timeYear": 1204,
+    "dailyMinutesDown": {}
   },
   {
     "name": "Сайт anamnez.kz",
@@ -66,11 +64,11 @@
     "uptimeWeek": "100.00%",
     "uptimeMonth": "100.00%",
     "uptimeYear": "100.00%",
-    "time": 805,
-    "timeDay": 332,
-    "timeWeek": 805,
-    "timeMonth": 805,
-    "timeYear": 805,
+    "time": 778,
+    "timeDay": 584,
+    "timeWeek": 778,
+    "timeMonth": 778,
+    "timeYear": 778,
     "dailyMinutesDown": {}
   }
 ]
